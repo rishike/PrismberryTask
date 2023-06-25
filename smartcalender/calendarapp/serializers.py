@@ -1,7 +1,23 @@
 from rest_framework import serializers
 from .models import Scheduler
 from django.contrib.auth.models import User
+from django.contrib.auth import authenticate
+from rest_framework.authtoken.models import Token
+from rest_framework.authtoken.views import ObtainAuthToken
 
+class LoginSerializer(serializers.Serializer):
+    username = serializers.CharField()
+    password = serializers.CharField()
+
+    def validate(self, data):
+        username = data.get('username')
+        password = data.get('password')
+
+        user = authenticate(username=username, password=password)
+        if not user:
+            raise serializers.ValidationError('Invalid credentials')
+
+        return user
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -10,7 +26,7 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'email', 'password']
         extra_kwargs = {'password': {'write_only': True}}
         
-    
+
     def create(self, validated_data):
         user = User.objects.create_user(
             username=validated_data['username'],
@@ -18,6 +34,7 @@ class UserSerializer(serializers.ModelSerializer):
             password=validated_data['password'],
             is_staff=True
         )
+        token, created = Token.objects.get_or_create(user=user)
         return user
     
     def update(self, instance, validated_data):

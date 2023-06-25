@@ -1,25 +1,39 @@
 from rest_framework import viewsets, serializers, status, views,generics
 from .models import Scheduler
 from .serializers import ScheduleSerializer, UserSerializer, UserUpdateSerializer
-from rest_framework.permissions import IsAuthenticatedOrReadOnly,AllowAny
+from rest_framework.permissions import IsAuthenticatedOrReadOnly,IsAuthenticated
 from .permissions import IsOwnerOrReadOnly
 from datetime import date, timedelta
 from django.db.models import Sum, ExpressionWrapper, F, DurationField
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from django.contrib.auth.models import User
+from .serializers import LoginSerializer
 
 
 # Create your views here.
 
-
+# class LoginView(views.APIView):
+#     def post(self, request):
+#         serializer = LoginSerializer(data=request.data)
+#         serializer.is_valid(raise_exception=True)
+#         user = serializer.validated_data
+#         return Response({'token': user.auth_token.key})
+    
+    
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
 
-class UserRetrieveUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
+class UserRetrieveUpdateView(generics.RetrieveUpdateAPIView):
+    permission_classes = [IsAuthenticated]
     queryset = User.objects.all()
     serializer_class = UserUpdateSerializer
+
+class UserDeleteView(generics.DestroyAPIView):
+    permission_classes = [IsAuthenticated]
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
 
 
 class SchedulerViewSet(viewsets.ModelViewSet):
@@ -40,7 +54,10 @@ class SchedulerViewSet(viewsets.ModelViewSet):
 
         start_date = serializer.validated_data['start_date']
         end_date = serializer.validated_data['end_date']
-
+        
+        if start_date >= end_date:
+            return Response({'error': 'End date must be greater than start date.'}, status=status.HTTP_400_BAD_REQUEST)
+        
         if self.validate_event_overlap(start_date, end_date):
             raise serializers.ValidationError("Overlapping events are not allowed.")
 
@@ -70,7 +87,7 @@ class SchedulerViewSet(viewsets.ModelViewSet):
         thirty_days_ago = date.today() - timedelta(days=30)
         analytics = Scheduler.objects.filter(
             start_date__gte=thirty_days_ago
-        ).values('start_date').annotate(
+        ).values('event_name', 'start_date').annotate(
             duration=Sum(ExpressionWrapper(F('end_date') - F('start_date'), output_field=DurationField()))
         )
         return Response(analytics)
