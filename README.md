@@ -32,5 +32,8 @@ use with python 3.11
 
 ### Note: Use Basic Auth While Using RestApi through curl or postman
 
+### PostMan collection Link
+https://api.postman.com/collections/9083171-82958b8d-5e6f-4359-8464-3050ba2d64c0?access_key=PMAT-01H3TAF5K9JWW3F57BNJZ1X071
+
 
 
